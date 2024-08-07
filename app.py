@@ -78,16 +78,15 @@ def generate_text_simple(params, word_vectors, user_input_vector):
 
 def find_closest_words(user_input_vector, word_vectors, gradients):
     closest_words = []
-    # gradientsをuser_input_vectorの形状に合わせる
-    gradients_broadcasted = np.tile(gradients, int(np.ceil(user_input_vector.shape[0] / gradients.shape[0])))[:user_input_vector.shape[0]]
+    # gradientsをword_vectorsの形状に合わせる
+    gradients_broadcasted = np.tile(gradients, int(np.ceil(768 / gradients.shape[0])))[:768]
     
     for word, vector in word_vectors.items():
-        distance = cosine(user_input_vector + gradients_broadcasted, vector)
+        distance = cosine(user_input_vector + gradients_broadcasted[:user_input_vector.shape[0]], vector)
         closest_words.append((distance, word))
     
     closest_words.sort()
     return [word for _, word in closest_words[:5]]
-
 
 def generate_text_with_params(params, word_vectors, user_input_vector):
     gradients = approximate_gradient(params, word_vectors, user_input_vector)
@@ -156,6 +155,7 @@ def generate_response(user_input):
     generated_text = generate_text_with_gpt(combined_prompt)
     
     return generated_text
+
 
 
 
