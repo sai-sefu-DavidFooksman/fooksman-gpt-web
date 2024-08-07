@@ -46,11 +46,12 @@ def vectorize_text(source_sentence, sentences):
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
     print("APIレスポンス:", response)  # レスポンス内容を出力して確認
     
-    if 'embeddings' in response:
-        vector = response['embeddings']
+    if isinstance(response, list) and len(response) > 0:
+        vector = response[0]  # リストの最初の要素をベクトルとして取得
         return np.array(vector)
     else:
-        raise ValueError("レスポンスに 'embeddings' が含まれていません")
+        raise ValueError("レスポンスに適切な形式のベクトルが含まれていません")
+
 
 def load_word_vectors(filename):
     try:
