@@ -108,20 +108,13 @@ def generate_response(user_input):
     
     return generated_text
 
-@app.route('/', methods=['GET'])
-def index():
-    return send_from_directory('.', 'index.html')
-
-@app.route('/generate', methods=['POST'])
-def generate():
-    data = request.json
-    user_input = data.get('user_input')
-    
-    if not user_input:
-        return jsonify({"error": "ユーザー入力が提供されていません。"}), 400
-    
-    response = generate_response(user_input)
-    return jsonify({"response": response})
+@app.route("/", methods=["GET", "POST"])
+def home():
+    if request.method == "POST":
+        user_input = request.form["user_input"]
+        response = generate_response(user_input)
+        return render_template("index.html", response=response, user_input=user_input)
+    return render_template("index.html", response="", user_input="")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
