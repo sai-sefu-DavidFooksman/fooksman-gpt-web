@@ -1,6 +1,6 @@
 Flask==2.0.1
 numpy==1.23.0
-tokenizers==0.13.0
+tokenizers==0.10.3
 torch>=1.13.0
 transformers==4.9.1
 scipy>=1.8.0
