@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import numpy as np
 import joblib
 import requests
+import os
 
 app = Flask(__name__)
 
@@ -106,6 +107,10 @@ def generate_response(user_input):
     generated_text = generate_text_with_gpt(combined_prompt)
     
     return generated_text
+
+@app.route('/', methods=['GET'])
+def index():
+    return send_from_directory('.', 'index.html')
 
 @app.route('/generate', methods=['POST'])
 def generate():
