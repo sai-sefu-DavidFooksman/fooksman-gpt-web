@@ -2,5 +2,5 @@ Flask==2.0.1
 numpy>=1.22.0
 torch>=1.13.0
 transformers==4.9.1
-scipy==1.7.3
+scipy>=1.8.0
 joblib==1.0.1
