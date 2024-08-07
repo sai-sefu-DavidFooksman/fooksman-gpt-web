@@ -1,16 +1,12 @@
-from flask import Flask, request, render_template
 import numpy as np
 import requests
-import os
-import joblib
 from scipy.spatial.distance import cosine
 from sklearn.decomposition import PCA
 
-app = Flask(__name__)
+# 環境変数からAPIキーを取得する
+HUGGINGFACE_API_KEY = "your_huggingface_api_key"  # 実際のAPIキーに置き換えてください
 
-# 設定
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+# APIエンドポイントの設定
 DISTILROBERTA_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-MiniLM-L6-v2"
 GPT2_API_URL = "https://api-inference.huggingface.co/models/openai-community/gpt2"
 
@@ -21,34 +17,35 @@ def call_huggingface_api(url, headers, payload):
 
 def vectorize_text(source_sentence, sentences):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    payload = {"inputs": {"source_sentence": source_sentence, "sentences": sentences}}
+    payload = {
+        "inputs": {
+            "source_sentence": source_sentence,
+            "sentences": sentences
+        }
+    }
+    
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
     
-    if isinstance(response, list):
-        return np.array(response)
+    if isinstance(response, list) and len(response) > 0:
+        vector = np.array(response[0])  # レスポンスからベクトルを取得
     else:
-        raise ValueError("Unexpected API response format")
+        raise ValueError("レスポンスが予期しない形式です")
+    
+    return vector
 
-def load_word_vectors(filename, n_components=6):
-    filepath = os.path.join(BASE_DIR, filename)
-    word_vectors = joblib.load(filepath)
-    
-    words = list(word_vectors.keys())
-    vectors = np.array(list(word_vectors.values()))
-    
-    if vectors.shape[1] <= 1:
-        return {word: vector for word, vector in zip(words, vectors)}
-    
-    pca = PCA(n_components=min(n_components, vectors.shape[1]))
-    reduced_vectors = pca.fit_transform(vectors)
-    
-    return {word: vec for word, vec in zip(words, reduced_vectors)}
+def load_word_vectors(filename):
+    try:
+        word_vectors = np.load(filename, allow_pickle=True).item()
+        return word_vectors
+    except Exception as e:
+        print(f"ベクトルファイルの読み込み中にエラーが発生しました: {e}")
+        return {}
 
-def approximate_gradient(params, word_vectors, user_input_vector):
-    delta = 1e-5
-    gradients = np.zeros(user_input_vector.shape[0])
+def approximate_gradient(params, word_vectors, user_input_vector, delta=1e-5):
+    vector_length = user_input_vector.shape[0]
+    gradients = np.zeros(vector_length)
     
-    for i in range(user_input_vector.shape[0]):
+    for i in range(vector_length):
         params_plus = params.copy()
         params_minus = params.copy()
         
@@ -58,65 +55,69 @@ def approximate_gradient(params, word_vectors, user_input_vector):
         vector_plus = vectorize_text(generate_text_simple(params_plus, word_vectors, user_input_vector), [])
         vector_minus = vectorize_text(generate_text_simple(params_minus, word_vectors, user_input_vector), [])
         
-        gradients[i] = np.mean(vector_plus - vector_minus) / (2 * delta)
+        gradient = np.mean(vector_plus - vector_minus) / (2 * delta)
+        gradients[i] = gradient
     
     return gradients
 
+def generate_6_points_vector(user_input_vector, gradients):
+    delta = 0.1
+    points = []
+    
+    for i in range(6):
+        perturbation = np.zeros(user_input_vector.shape[0])
+        perturbation[i % user_input_vector.shape[0]] = delta * (i - 2.5)
+        
+        point = user_input_vector + perturbation
+        points.append(point)
+    
+    return np.array(points)
+
 def generate_text_simple(params, word_vectors, user_input_vector):
-    closest_words = find_closest_words(user_input_vector, word_vectors, params)
+    closest_words = find_closest_words(user_input_vector, word_vectors)
     return " ".join(closest_words)
 
-def find_closest_words(user_input_vector, word_vectors, gradients):
+def find_closest_words(user_input_vector, word_vectors):
     closest_words = []
+    
     for word, vector in word_vectors.items():
-        distance = cosine(user_input_vector + gradients, vector)
+        distance = cosine(user_input_vector, vector)
         closest_words.append((distance, word))
+    
     closest_words.sort()
     return [word for _, word in closest_words[:5]]
-
-def generate_text_with_params(params, word_vectors, user_input_vector):
-    gradients = approximate_gradient(params, word_vectors, user_input_vector)
-    closest_words = find_closest_words(user_input_vector, word_vectors, gradients)
-    return " ".join(closest_words)
-
-def generate_text_from_gradient(params, user_input_vector):
-    word_vectors = load_word_vectors('word_vectors.pkl')
-    if not word_vectors:
-        return "Error: Could not load word vectors."
-    return generate_text_with_params(params, word_vectors, user_input_vector) 
 
 def generate_text_with_gpt(prompt):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
     payload = {"inputs": prompt}
-    response = call_huggingface_api(GPT2_API_URL, headers, payload)
     
+    response = call_huggingface_api(GPT2_API_URL, headers, payload)
     if isinstance(response, list) and len(response) > 0 and 'generated_text' in response[0]:
         return response[0]['generated_text'].strip()
     else:
-        raise ValueError("Response does not contain 'generated_text'")
-
-def load_optimized_parameters(filename):
-    try:
-        return np.load(os.path.join(BASE_DIR, filename))
-    except Exception as e:
-        print(f"Error loading optimized parameters: {e}")
-        return np.zeros(10)
+        raise ValueError("レスポンスに 'generated_text' が含まれていません")
 
 def generate_response(user_input):
-    generated_sentences = [generate_text_with_gpt(user_input) for _ in range(5)]
-    user_input_vector = vectorize_text(user_input, generated_sentences)
+    word_vectors = load_word_vectors('word_vectors.pkl')
+    if not word_vectors:
+        return "エラー: ワードベクトルがロードできません。"
     
-    filename = 'optimized_params.npy'
-    optimized_params = load_optimized_parameters(filename)
+    # 仮のパラメータ
+    params = np.random.rand(768)
     
-    if user_input_vector.shape[0] != optimized_params.shape[0]:
-        if user_input_vector.shape[0] < optimized_params.shape[0]:
-            user_input_vector = np.pad(user_input_vector, (0, optimized_params.shape[0] - user_input_vector.shape[0]), mode='constant')
-        else:
-            optimized_params = np.tile(optimized_params, int(np.ceil(user_input_vector.shape[0] / optimized_params.shape[0])))[:user_input_vector.shape[0]]
+    user_input_vector = vectorize_text(user_input, [""])  # ダミーのベクトル化
+    gradients = approximate_gradient(params, word_vectors, user_input_vector)
+    six_points_vector = generate_6_points_vector(user_input_vector, gradients)
     
-    prompt = generate_text_from_gradient(optimized_params, user_input_vector)
-    return generate_text_with_gpt(prompt)
+    prompt = generate_text_simple(params, word_vectors, user_input_vector)
+    generated_text = generate_text_with_gpt(prompt)
+    
+    return generated_text
+
+# Flaskアプリケーションの設定
+from flask import Flask, request, render_template
+
+app = Flask(__name__)
 
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -125,12 +126,11 @@ def home():
         try:
             response = generate_response(user_input)
         except requests.exceptions.HTTPError as e:
-            response = f"Error occurred: {e}"
+            response = f"エラーが発生しました: {e}"
         except ValueError as e:
-            response = f"Error: {e}"
+            response = f"エラー: {e}"
         return render_template("index.html", response=response, user_input=user_input)
     return render_template("index.html", response="", user_input="")
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=10000, debug=True)
