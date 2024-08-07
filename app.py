@@ -48,10 +48,10 @@ def vectorize_text(source_sentence, sentences):
     
     if isinstance(response, list) and len(response) > 0:
         vector = response[0]  # リストの最初の要素をベクトルとして取得
+        print("ベクトルの形状:", len(vector))  # ベクトルの形状を確認
         return np.array(vector)
     else:
         raise ValueError("レスポンスに適切な形式のベクトルが含まれていません")
-
 
 def load_word_vectors(filename):
     try:
@@ -136,12 +136,22 @@ def generate_response(user_input):
     
     # ユーザー入力と生成した文をベクトル化
     user_input_vector = vectorize_text(user_input, generated_sentences)
+    print("ユーザー入力ベクトルの形状:", user_input_vector.shape)  # ベクトルの形状を確認
     
     filename = 'optimized_params.npy'
     optimized_params = load_optimized_parameters(filename)
     
+    print("最適化パラメータの形状:", optimized_params.shape)  # パラメータの形状を確認
+    
+    # 次元の一致を確認
     if user_input_vector.shape[0] != optimized_params.shape[0]:
-        return "エラー: ベクトルの次元が一致しません。"
+        # 次元が一致しない場合に修正する
+        if user_input_vector.shape[0] < optimized_params.shape[0]:
+            # user_input_vector の次元を合わせる
+            optimized_params = optimized_params[:user_input_vector.shape[0]]
+        else:
+            # optimized_params の次元を合わせる
+            user_input_vector = np.pad(user_input_vector, (0, optimized_params.shape[0] - user_input_vector.shape[0]), mode='constant')
     
     prompts = []
     prompt = generate_text_from_gradient(optimized_params, user_input_vector)
