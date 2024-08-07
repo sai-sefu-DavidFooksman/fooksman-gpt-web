@@ -35,7 +35,7 @@ def call_huggingface_api(api_url, headers, payload, retries=3):
 
 def vectorize_text(text):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    payload = {"inputs": {"source_sentence": text}}  # 正しいフィールド名に修正
+    payload = {"inputs": {"sentences": [text]}}  # sentences フィールドに修正
     
     # Sentence-TransformersモデルのAPI呼び出し
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
@@ -101,7 +101,7 @@ def generate_text_from_gradient(params, user_input_vector):
 
 def generate_text_with_gpt(prompt):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    payload = {"inputs": {"prompt": prompt}}  # GPT-2モデルには正しいフィールド名を使用
+    payload = {"inputs": {"prompt": prompt}}  # GPT-2モデル用に確認済み
     
     # GPT-2モデルのAPI呼び出し
     response = call_huggingface_api(GPT2_API_URL, headers, payload)
