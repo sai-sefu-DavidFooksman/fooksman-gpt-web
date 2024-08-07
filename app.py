@@ -24,7 +24,7 @@ def call_huggingface_api(api_url, headers, payload, retries=3):
         except requests.exceptions.HTTPError as e:
             if response.status_code == 503:
                 print(f"503 サーバーエラー: {e}, リトライ {attempt + 1} / {retries}")
-                        elif response.status_code == 400:
+            elif response.status_code == 400:
                 print(f"400 クライアントエラー: {response.json()}")  # エラーメッセージを表示
             else:
                 raise
