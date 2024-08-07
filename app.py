@@ -78,16 +78,14 @@ def generate_text_simple(params, word_vectors, user_input_vector):
 
 def find_closest_words(user_input_vector, word_vectors, gradients):
     closest_words = []
-    gradients_broadcasted = np.full_like(user_input_vector, gradients)  # スカラー量の場合
-    print(f"user_input_vector shape: {user_input_vector.shape}")
-    print(f"gradients shape: {gradients.shape}")
-    print(f"gradients_broadcasted shape: {gradients_broadcasted.shape}")
-
+    # gradientsをuser_input_vectorの形状に合わせる
+    gradients_broadcasted = np.tile(gradients, (user_input_vector.shape[0] // gradients.shape[0] + 1, ))[:user_input_vector.shape[0]]
     for word, vector in word_vectors.items():
         distance = cosine(user_input_vector + gradients_broadcasted, vector)
         closest_words.append((distance, word))
     closest_words.sort()
     return [word for _, word in closest_words[:5]]
+
 
 def generate_text_with_params(params, word_vectors, user_input_vector):
     gradients = approximate_gradient(params, word_vectors, user_input_vector)
@@ -122,29 +120,31 @@ def load_optimized_parameters(filename):
         return np.zeros(10)
 
 def generate_response(user_input):
-    # GPT-2で複数の文を生成
     generated_sentences = []
-    for _ in range(5):  # 5つの文を生成
+    for _ in range(5):
         generated_sentence = generate_text_with_gpt(user_input)
         generated_sentences.append(generated_sentence)
     
-    # ユーザー入力と生成した文をベクトル化
     user_input_vector = vectorize_text(user_input, generated_sentences)
-    print("ユーザー入力ベクトルの形状:", user_input_vector.shape)  # ベクトルの形状を確認
+    
+    # print statements for debugging
+    print("API応答: ", user_input_vector)
+    print("形状: ", user_input_vector.shape) 
     
     filename = 'optimized_params.npy'
-    optimized_params = np.load(filename)  # NumPyファイルを読み込み
-    print("最適化パラメータの形状:", optimized_params.shape)  # パラメータの形状を確認
+    optimized_params = np.load(filename)
+    
+    print("最適化パラメータの形状: ", optimized_params.shape)
     
     # 次元の一致を確認
     if user_input_vector.shape[0] != optimized_params.shape[0]:
         if user_input_vector.shape[0] < optimized_params.shape[0]:
-            # user_input_vector の次元を合わせるためにゼロパディング
             padding = optimized_params.shape[0] - user_input_vector.shape[0]
             user_input_vector = np.pad(user_input_vector, (0, padding), mode='constant')
         else:
-            # optimized_params の次元を合わせるために切り取る
             optimized_params = optimized_params[:user_input_vector.shape[0]]
+    
+    print("ユーザー入力ベクトルの形状: ", user_input_vector.shape) 
     
     prompts = []
     prompt = generate_text_from_gradient(optimized_params, user_input_vector)
@@ -155,6 +155,7 @@ def generate_response(user_input):
     generated_text = generate_text_with_gpt(combined_prompt)
     
     return generated_text
+
 
 @app.route("/", methods=["GET", "POST"])
 def home():
