@@ -1,11 +1,6 @@
 Flask
+requests
 numpy
-tokenizers
-torch
-transformers
 scipy
 joblib
 gunicorn
-fugashi
-mecab-python3
-ipadic
