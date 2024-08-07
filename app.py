@@ -23,12 +23,16 @@ def call_huggingface_api(api_url, headers, payload, retries=3):
             print(f"レスポンス: {response.json()}")  # デバッグ用
             return response.json()
         except requests.exceptions.HTTPError as e:
+            print(f"HTTP エラー: {e}")
             if response.status_code == 503:
-                print(f"503 サーバーエラー: {e}, リトライ {attempt + 1} / {retries}")
+                print(f"503 サーバーエラー: リトライ {attempt + 1} / {retries}")
             else:
                 raise
+        except requests.exceptions.RequestException as e:
+            print(f"リクエストエラー: {e}")
+            raise
         except Exception as e:
-            print(f"API呼び出し中にエラーが発生しました: {e}")
+            print(f"不明なエラー: {e}")
             raise
     raise requests.exceptions.HTTPError(f"503 サーバーエラー: {retries}回の試行後もサービスが利用できません")
 
@@ -38,8 +42,8 @@ def vectorize_text(text):
     
     # BERT日本語モデルのAPI呼び出し
     response = call_huggingface_api(BERT_JP_API_URL, headers, payload)
-    if 'features' in response[0]:
-        vector = response[0]['features']
+    if 'features' in response:
+        vector = response['features']
     else:
         raise ValueError("レスポンスに 'features' が含まれていません")
     
@@ -105,8 +109,8 @@ def generate_text_with_gpt(prompt):
     
     # GPT-2モデルのAPI呼び出し
     response = call_huggingface_api(GPT2_API_URL, headers, payload)
-    if 'generated_text' in response[0]:
-        return response[0]['generated_text'].strip()
+    if 'generated_text' in response:
+        return response['generated_text'].strip()
     else:
         raise ValueError("レスポンスに 'generated_text' が含まれていません")
 
