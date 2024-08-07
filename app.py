@@ -2,6 +2,8 @@ from flask import Flask, request, render_template
 import numpy as np
 import requests
 import os
+import joblib
+from scipy.spatial.distance import cosine
 
 app = Flask(__name__)
 
@@ -13,10 +15,21 @@ HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPI�
 GPT2_API_URL = "https://api-inference.huggingface.co/models/gpt2"
 BERT_JP_API_URL = "https://api-inference.huggingface.co/models/cl-tohoku/bert-base-japanese"
 
-def call_huggingface_api(api_url, headers, payload):
-    response = requests.post(api_url, headers=headers, json=payload)
-    response.raise_for_status()  # エラーが発生した場合に例外をスロー
-    return response.json()
+def call_huggingface_api(api_url, headers, payload, retries=3):
+    for attempt in range(retries):
+        try:
+            response = requests.post(api_url, headers=headers, json=payload)
+            response.raise_for_status()  # エラーが発生した場合に例外をスロー
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 503:
+                print(f"503 サーバーエラー: {e}, リトライ {attempt + 1} / {retries}")
+            else:
+                raise
+        except Exception as e:
+            print(f"API呼び出し中にエラーが発生しました: {e}")
+            raise
+    raise requests.exceptions.HTTPError(f"503 サーバーエラー: {retries}回の試行後もサービスが利用できません")
 
 def vectorize_text(text):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
@@ -120,7 +133,10 @@ def generate_response(user_input):
 def home():
     if request.method == "POST":
         user_input = request.form["user_input"]
-        response = generate_response(user_input)
+        try:
+            response = generate_response(user_input)
+        except requests.exceptions.HTTPError as e:
+            response = f"エラーが発生しました: {e}"
         return render_template("index.html", response=response, user_input=user_input)
     return render_template("index.html", response="", user_input="")
 
