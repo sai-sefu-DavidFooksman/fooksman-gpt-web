@@ -15,23 +15,10 @@ HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPI�
 DISTILROBERTA_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-MiniLM-L6-v2"
 GPT2_API_URL = "https://api-inference.huggingface.co/models/openai-community/gpt2"
 
-def call_huggingface_api(api_url, headers, payload, retries=3):
-    for attempt in range(retries):
-        try:
-            response = requests.post(api_url, headers=headers, json=payload)
-            response.raise_for_status()  # エラーが発生した場合に例外をスロー
-            return response.json()
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 503:
-                print(f"503 サーバーエラー: {e}, リトライ {attempt + 1} / {retries}")
-            elif response.status_code == 400:
-                print(f"400 クライアントエラー: {response.json()}")  # エラーメッセージを表示
-            else:
-                raise
-        except Exception as e:
-            print(f"API呼び出し中にエラーが発生しました: {e}")
-            raise
-    raise requests.exceptions.HTTPError(f"503 サーバーエラー: {retries}回の試行後もサービスが利用できません")
+def call_huggingface_api(url, headers, payload):
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+    return response.json()
 
 def vectorize_text(source_sentence, sentences):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
@@ -46,12 +33,15 @@ def vectorize_text(source_sentence, sentences):
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
     print("APIレスポンス:", response)  # レスポンス内容を出力して確認
     
-    if isinstance(response, list) and len(response) > 0:
-        vector = response[0]  # リストの最初の要素をベクトルとして取得
-        print("ベクトルの形状:", len(vector))  # ベクトルの形状を確認
-        return np.array(vector)
+    # レスポンスがベクトル（リストまたは配列）であると仮定
+    if isinstance(response, list):
+        vector = np.array(response)  # レスポンスをNumPy配列に変換
     else:
-        raise ValueError("レスポンスに適切な形式のベクトルが含まれていません")
+        raise ValueError("レスポンスが予期しない形式です")
+
+    print("ベクトルの形状:", vector.shape)  # ベクトルの形状を確認
+    return vector
+
 
 def load_word_vectors(filename):
     try:
