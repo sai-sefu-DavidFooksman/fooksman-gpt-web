@@ -1,0 +1,6 @@
+Flask==2.0.1
+numpy==1.21.6
+torch==1.13.1
+transformers==4.9.1
+scipy==1.7.3
+joblib==1.0.1
