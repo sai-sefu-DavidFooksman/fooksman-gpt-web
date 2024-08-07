@@ -8,3 +8,4 @@ joblib
 gunicorn
 fugashi
 mecab-python3
+ipadic
