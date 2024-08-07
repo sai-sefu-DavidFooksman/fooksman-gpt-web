@@ -12,12 +12,12 @@ HUGGING_FACE_API_URL_GPT2 = 'https://api-inference.huggingface.co/models/openai-
 HUGGING_FACE_API_TOKEN = 'HUGGINGFACE_API_KEY'
 
 def vectorize_text(text):
-    #words = text.split(' ')
-    #i = 0
-    #formatted_words = [f"[MASK]" if j == i else word for j, word in enumerate(words)]
-    #formatted_text = ' '.join(formatted_words)
+    words = text.split(' ')
+    i = 0
+    formatted_words = [f"[MASK]" if j == i else word for j, word in enumerate(words)]
+    formatted_text = ' '.join(formatted_words)
     headers = {"Authorization": f"Bearer {HUGGING_FACE_API_TOKEN}"}
-    response = requests.post(HUGGING_FACE_API_URL_BERT, headers=headers, json={"inputs":text})
+    response = requests.post(HUGGING_FACE_API_URL_BERT, headers=headers, json={"inputs":formatted_text})
     response.raise_for_status()
     outputs = response.json()
     last_hidden_state = np.array(outputs['last_hidden_state'])
