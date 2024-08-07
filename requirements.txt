@@ -1,7 +1,7 @@
-Flask==2.0.1
+Flask
 numpy
-tokenizers==0.10.3
-torch>=1.13.0
-transformers==4.9.1
-scipy>=1.8.0
-joblib==1.0.1
+tokenizers
+torch
+transformers
+scipy
+joblib
