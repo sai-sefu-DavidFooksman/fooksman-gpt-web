@@ -18,6 +18,7 @@ def vectorize_text(text):
     formatted_text = ' '.join(formatted_words)
     headers = {"Authorization": f"Bearer {HUGGING_FACE_API_TOKEN}"}
     response = requests.post(HUGGING_FACE_API_URL_BERT, headers=headers, json={"inputs":formatted_text})
+    print(response)
     response.raise_for_status()
     outputs = response.json()
     last_hidden_state = np.array(outputs['last_hidden_state'])
