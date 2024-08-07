@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT風アプリケーション</title>
+</head>
+<body>
+    <h1>ChatGPT風アプリケーション</h1>
+    <form method="post">
+        <label for="user_input">ユーザーの入力:</label>
+        <input type="text" id="user_input" name="user_input" value="{{ user_input }}" required>
+        <button type="submit">送信</button>
+    </form>
+    {% if response %}
+    <h2>生成された応答:</h2>
+    <p>{{ response }}</p>
+    {% endif %}
+</body>
+</html>
