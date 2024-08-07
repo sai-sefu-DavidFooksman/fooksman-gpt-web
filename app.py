@@ -33,9 +33,14 @@ def call_huggingface_api(api_url, headers, payload, retries=3):
             raise
     raise requests.exceptions.HTTPError(f"503 サーバーエラー: {retries}回の試行後もサービスが利用できません")
 
-def vectorize_text(text):
+def vectorize_text(source_sentence, sentences):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    payload = {"inputs": {"sentences": [text]}}  # sentences フィールドに修正
+    payload = {
+        "inputs": {
+            "source_sentence": source_sentence,
+            "sentences": sentences
+        }
+    }
     
     # Sentence-TransformersモデルのAPI呼び出し
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
@@ -65,8 +70,8 @@ def approximate_gradient(params, word_vectors, user_input_vector):
         params_plus[4 + i] += delta
         params_minus[4 + i] -= delta
         
-        vector_plus = vectorize_text(generate_text_simple(params_plus, word_vectors, user_input_vector))
-        vector_minus = vectorize_text(generate_text_simple(params_minus, word_vectors, user_input_vector))
+        vector_plus = vectorize_text(generate_text_simple(params_plus, word_vectors, user_input_vector), [])
+        vector_minus = vectorize_text(generate_text_simple(params_minus, word_vectors, user_input_vector), [])
         
         gradient = np.mean(vector_plus - vector_minus) / (2 * delta)
         gradients[i] = gradient
@@ -101,7 +106,7 @@ def generate_text_from_gradient(params, user_input_vector):
 
 def generate_text_with_gpt(prompt):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    payload = {"inputs": {"prompt": prompt}}  # GPT-2モデル用に確認済み
+    payload = {"inputs": {"source_sentence": prompt}}
     
     # GPT-2モデルのAPI呼び出し
     response = call_huggingface_api(GPT2_API_URL, headers, payload)
@@ -119,16 +124,21 @@ def load_optimized_parameters(filename):
         return np.zeros(10)
 
 def generate_response(user_input):
-    user_input_tokens = user_input.split()
-    user_input_vectors = [vectorize_text(token) for token in user_input_tokens]
+    # GPT-2で複数の文を生成
+    generated_sentences = []
+    for _ in range(5):  # 5つの文を生成
+        generated_sentence = generate_text_with_gpt(user_input)
+        generated_sentences.append(generated_sentence)
+    
+    # ユーザー入力と生成した文をベクトル化
+    user_input_vector = vectorize_text(user_input, generated_sentences)
     
     filename = 'optimized_params.npy'
     optimized_params = load_optimized_parameters(filename)
     
     prompts = []
-    for vec in user_input_vectors:
-        prompt = generate_text_from_gradient(optimized_params, vec)
-        prompts.append(prompt)
+    prompt = generate_text_from_gradient(optimized_params, user_input_vector)
+    prompts.append(prompt)
     
     combined_prompt = " ".join(prompts)
     
