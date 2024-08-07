@@ -37,12 +37,16 @@ def vectorize_text(source_sentence, sentences):
     # レスポンスがベクトル（リストまたは配列）であると仮定
     if isinstance(response, list):
         vector = np.array(response)  # レスポンスをNumPy配列に変換
+        
+        # 768次元のベクトルを6次元に圧縮
+        pca = PCA(n_components=6)
+        reduced_vector = pca.fit_transform(vector.reshape(1, -1)).flatten()
+        
     else:
         raise ValueError("レスポンスが予期しない形式です")
 
-    print("ベクトルの形状:", vector.shape)  # ベクトルの形状を確認
-    return vector
-
+    print("ベクトルの形状:", reduced_vector.shape)  # ベクトルの形状を確認
+    return reduced_vector
 
 def load_word_vectors(filename, n_components=6):
     try:
@@ -66,7 +70,7 @@ def load_word_vectors(filename, n_components=6):
         return {}
 
 # 6次元に削減したword_vectorsを読み込み
-reduced_word_vectors = load_and_reduce_word_vectors('word_vectors.pkl', n_components=6)
+reduced_word_vectors = load_word_vectors('word_vectors.pkl', n_components=6)
 
 def approximate_gradient(params, word_vectors, user_input_vector):
     delta = 1e-5
@@ -95,7 +99,7 @@ def generate_text_simple(params, word_vectors, user_input_vector):
 def find_closest_words(user_input_vector, word_vectors, gradients):
     closest_words = []
     # gradientsをword_vectorsの形状に合わせる
-    gradients_broadcasted = np.tile(gradients, int(np.ceil(768 / gradients.shape[0])))[:768]
+    gradients_broadcasted = np.tile(gradients, int(np.ceil(user_input_vector.shape[0] / gradients.shape[0])))[:user_input_vector.shape[0]]
     
     for word, vector in word_vectors.items():
         distance = cosine(user_input_vector + gradients_broadcasted[:user_input_vector.shape[0]], vector)
@@ -171,9 +175,6 @@ def generate_response(user_input):
     generated_text = generate_text_with_gpt(combined_prompt)
     
     return generated_text
-
-
-
 
 @app.route("/", methods=["GET", "POST"])
 def home():
