@@ -12,7 +12,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPIキーを取得
 
 # Hugging Face APIのエンドポイント
-DISTILBERT_API_URL = "https://api-inference.huggingface.co/models/distilbert-base-uncased"
+DISTILROBERTA_API_URL = "https://api-inference.huggingface.co/models/distilroberta-base"
 GPT2_API_URL = "https://api-inference.huggingface.co/models/openai/gpt-2"
 
 def call_huggingface_api(api_url, headers, payload, retries=3):
@@ -35,8 +35,8 @@ def vectorize_text(text):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
     payload = {"inputs": text}
     
-    # DistilBERTモデルのAPI呼び出し
-    response = call_huggingface_api(DISTILBERT_API_URL, headers, payload)
+    # DistilRoBERTaモデルのAPI呼び出し
+    response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
     if 'last_hidden_state' in response:
         vector = response['last_hidden_state'][0][0]  # 最初のトークンのベクトルを取得
         return np.array(vector)
