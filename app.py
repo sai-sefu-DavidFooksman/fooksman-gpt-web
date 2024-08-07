@@ -44,8 +44,10 @@ def vectorize_text(source_sentence, sentences):
     
     # Sentence-TransformersモデルのAPI呼び出し
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
-    if isinstance(response, list) and len(response) > 0 and isinstance(response[0], list):
-        vector = response[0]
+    print("APIレスポンス:", response)  # レスポンス内容を出力して確認
+    
+    if 'embeddings' in response:
+        vector = response['embeddings']
         return np.array(vector)
     else:
         raise ValueError("レスポンスに 'embeddings' が含まれていません")
