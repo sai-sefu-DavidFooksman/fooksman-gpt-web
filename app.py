@@ -24,7 +24,7 @@ def call_huggingface_api(api_url, headers, payload, retries=3):
         except requests.exceptions.HTTPError as e:
             if response.status_code == 503:
                 print(f"503 サーバーエラー: {e}, リトライ {attempt + 1} / {retries}")
-            elif response.status_code == 400:
+                        elif response.status_code == 400:
                 print(f"400 クライアントエラー: {response.json()}")  # エラーメッセージを表示
             else:
                 raise
@@ -44,11 +44,9 @@ def vectorize_text(source_sentence, sentences):
     
     # Sentence-TransformersモデルのAPI呼び出し
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
-    if isinstance(response, list) and len(response) > 0:
-        vectors = [np.array(item) for item in response]
-        # ベクトルを numpy 配列に変換し、適切な形状を持たせる
-        print(f"vectorize_text output shape: {np.array(vectors).shape}")  # デバッグ情報
-        return np.array(vectors)
+    if isinstance(response, list) and len(response) > 0 and isinstance(response[0], list):
+        vector = response[0]
+        return np.array(vector)
     else:
         raise ValueError("レスポンスに 'embeddings' が含まれていません")
 
@@ -63,10 +61,10 @@ def load_word_vectors(filename):
 
 def approximate_gradient(params, word_vectors, user_input_vector):
     delta = 1e-5
-    num_dimensions = user_input_vector.shape[1] if len(user_input_vector.shape) > 1 else 1
-    gradients = np.zeros((num_dimensions,))  # ベクトルの次元に合わせてゼロ配列を作成
+    vector_length = user_input_vector.shape[0]
+    gradients = np.zeros(vector_length)  # ベクトルの次元に合わせてゼロ配列を作成
     
-    for i in range(num_dimensions):  # 次元数に合わせてループ
+    for i in range(vector_length):
         params_plus = params.copy()
         params_minus = params.copy()
         
@@ -76,22 +74,20 @@ def approximate_gradient(params, word_vectors, user_input_vector):
         vector_plus = vectorize_text(generate_text_simple(params_plus, word_vectors, user_input_vector), [])
         vector_minus = vectorize_text(generate_text_simple(params_minus, word_vectors, user_input_vector), [])
         
-        gradient = np.mean(vector_plus - vector_minus, axis=0) / (2 * delta)
+        gradient = np.mean(vector_plus - vector_minus) / (2 * delta)
         gradients[i] = gradient
-
-     print(f"gradients shape: {gradients.shape}")  # デバッグ情報
+    
     return gradients
 
-
 def generate_text_simple(params, word_vectors, user_input_vector):
-    closest_words = find_closest_words(user_input_vector, word_vectors, params[4:])
+    closest_words = find_closest_words(user_input_vector, word_vectors, params[4:5])
     return " ".join(closest_words)
 
 def find_closest_words(user_input_vector, word_vectors, gradients):
     closest_words = []
     gradients_broadcasted = np.tile(gradients, (user_input_vector.shape[0] // gradients.shape[0], 1)).flatten()
     for word, vector in word_vectors.items():
-        distance = cosine(user_input_vector.mean(axis=0) + gradients_broadcasted, vector)
+        distance = cosine(user_input_vector + gradients_broadcasted, vector)
         closest_words.append((distance, word))
     closest_words.sort()
     return [word for _, word in closest_words[:5]]
@@ -102,14 +98,12 @@ def generate_text_with_params(params, word_vectors, user_input_vector):
     return " ".join(closest_words)
 
 def generate_text_from_gradient(params, user_input_vector):
-    print(f"user_input_vector shape: {user_input_vector.shape}")  # デバッグ情報
     word_vectors = load_word_vectors('word_vectors.pkl')
     
     if not word_vectors:
         return "エラー: ワードベクトルがロードできません。"
     
     return generate_text_with_params(params, word_vectors, user_input_vector) 
-
 
 def generate_text_with_gpt(prompt):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
@@ -138,13 +132,13 @@ def generate_response(user_input):
         generated_sentences.append(generated_sentence)
     
     # ユーザー入力と生成した文をベクトル化
-    try:
-        user_input_vector = vectorize_text(user_input, generated_sentences)
-    except ValueError as e:
-        return f"ベクトル化エラー: {e}"
+    user_input_vector = vectorize_text(user_input, generated_sentences)
     
     filename = 'optimized_params.npy'
     optimized_params = load_optimized_parameters(filename)
+    
+    if user_input_vector.shape[0] != optimized_params.shape[0]:
+        return "エラー: ベクトルの次元が一致しません。"
     
     prompts = []
     prompt = generate_text_from_gradient(optimized_params, user_input_vector)
