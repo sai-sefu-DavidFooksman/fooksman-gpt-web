@@ -6,3 +6,5 @@ transformers
 scipy
 joblib
 gunicorn
+fugashi
+mecab-python3
