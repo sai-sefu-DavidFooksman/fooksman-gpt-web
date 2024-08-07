@@ -1,43 +1,120 @@
 from flask import Flask, request, render_template
 import numpy as np
-import torch
-from transformers import BertJapaneseTokenizer, BertModel, GPT2Tokenizer, GPT2LMHeadModel
-from scipy.spatial.distance import cosine
-import joblib
+import requests
 import os
 
 app = Flask(__name__)
 
 # ディレクトリのベースパスを設定
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPIキーを取得
 
-# モデルとトークナイザーのインスタンスをグローバルに一度だけ作成
-tokenizer_bert = BertJapaneseTokenizer.from_pretrained('cl-tohoku/bert-base-japanese')
-model_bert = BertModel.from_pretrained('cl-tohoku/bert-base-japanese')
-tokenizer_gpt = GPT2Tokenizer.from_pretrained('gpt2')
-model_gpt = GPT2LMHeadModel.from_pretrained('gpt2')
+# Hugging Face APIのエンドポイント
+GPT2_API_URL = "https://api-inference.huggingface.co/models/gpt2"
+BERT_JP_API_URL = "https://api-inference.huggingface.co/models/cl-tohoku/bert-base-japanese"
+
+def call_huggingface_api(api_url, headers, payload):
+    response = requests.post(api_url, headers=headers, json=payload)
+    response.raise_for_status()  # エラーが発生した場合に例外をスロー
+    return response.json()
 
 def vectorize_text(text):
-    inputs = tokenizer_bert(text, return_tensors='pt', truncation=True, padding=True)
-    outputs = model_bert(**inputs)
-    vector = outputs.last_hidden_state[:, 0, :].detach().numpy()
-    return vector.flatten()
+    headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
+    payload = {"inputs": text}
+    
+    # BERT日本語モデルのAPI呼び出し
+    response = call_huggingface_api(BERT_JP_API_URL, headers, payload)
+    vector = response['last_hidden_state'][0][0]
+    
+    return np.array(vector).flatten()
+
+def load_word_vectors(filename):
+    try:
+        filepath = os.path.join(BASE_DIR, filename)
+        word_vectors = joblib.load(filepath)
+        return word_vectors
+    except Exception as e:
+        print(f"ベクトルファイルの読み込み中にエラーが発生しました: {e}")
+        return {}
+
+def approximate_gradient(params, word_vectors, user_input_vector):
+    delta = 1e-5
+    gradients = np.zeros(2)
+    
+    for i in range(2):
+        params_plus = params.copy()
+        params_minus = params.copy()
+        
+        params_plus[4 + i] += delta
+        params_minus[4 + i] -= delta
+        
+        vector_plus = vectorize_text(generate_text_simple(params_plus, word_vectors, user_input_vector)) 
+        vector_minus = vectorize_text(generate_text_simple(params_minus, word_vectors, user_input_vector))
+        
+        gradient = np.mean(vector_plus - vector_minus) / (2 * delta)
+        gradients[i] = gradient
+    
+    return gradients
+
+def generate_text_simple(params, word_vectors, user_input_vector):
+    closest_words = find_closest_words(user_input_vector, word_vectors, params[4:5])
+    return " ".join(closest_words)
+
+def find_closest_words(user_input_vector, word_vectors, gradients):
+    closest_words = []
+    gradients_broadcasted = np.tile(gradients, (user_input_vector.shape[0] // gradients.shape[0], 1)).flatten() 
+    for word, vector in word_vectors.items():
+        distance = cosine(user_input_vector + gradients_broadcasted, vector)  
+        closest_words.append((distance, word))
+    closest_words.sort()
+    return [word for _, word in closest_words[:5]]
+
+def generate_text_with_params(params, word_vectors, user_input_vector):
+    gradients = approximate_gradient(params, word_vectors, user_input_vector)
+    closest_words = find_closest_words(user_input_vector, word_vectors, gradients)
+    return " ".join(closest_words)
+
+def generate_text_from_gradient(params, user_input_vector):
+    word_vectors = load_word_vectors('word_vectors.pkl')
+    
+    if not word_vectors:
+        return "エラー: ワードベクトルがロードできません。"
+    
+    return generate_text_with_params(params, word_vectors, user_input_vector) 
 
 def generate_text_with_gpt(prompt):
-    inputs = tokenizer_gpt(prompt, return_tensors='pt')
-    outputs = model_gpt.generate(
-        inputs['input_ids'],
-        max_length=150,
-        num_return_sequences=1,
-        temperature=0.7,
-        top_k=50,
-        top_p=0.9,
-        no_repeat_ngram_size=2,
-        early_stopping=True,
-        pad_token_id=tokenizer_gpt.eos_token_id
-    )
-    text = tokenizer_gpt.decode(outputs[0], skip_special_tokens=True)
-    return text.strip()
+    headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
+    payload = {"inputs": prompt}
+    
+    # GPT-2モデルのAPI呼び出し
+    response = call_huggingface_api(GPT2_API_URL, headers, payload)
+    return response['generated_text'].strip()
+
+def load_optimized_parameters(filename):
+    try:
+        filepath = os.path.join(BASE_DIR, filename)
+        return np.load(filepath)
+    except Exception as e:
+        print(f"最適化パラメータの読み込み中にエラーが発生しました: {e}")
+        return np.zeros(10)
+
+def generate_response(user_input):
+    user_input_tokens = user_input.split()
+    user_input_vectors = [vectorize_text(token) for token in user_input_tokens]
+    
+    filename = 'optimized_params.npy'
+    optimized_params = load_optimized_parameters(filename)
+    
+    prompts = []
+    for vec in user_input_vectors:
+        prompt = generate_text_from_gradient(optimized_params, vec)
+        prompts.append(prompt)
+    
+    combined_prompt = " ".join(prompts)
+    
+    generated_text = generate_text_with_gpt(combined_prompt)
+    
+    return generated_text
 
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -48,5 +125,5 @@ def home():
     return render_template("index.html", response="", user_input="")
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+     port = int(os.getenv("PORT", 10000))
+     app.run(host="0.0.0.0", port=port, debug=True)
