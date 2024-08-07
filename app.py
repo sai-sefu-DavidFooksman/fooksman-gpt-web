@@ -4,6 +4,7 @@ import requests
 import os
 import joblib
 from scipy.spatial.distance import cosine
+from sklearn.decomposition import PCA
 
 app = Flask(__name__)
 
@@ -43,14 +44,29 @@ def vectorize_text(source_sentence, sentences):
     return vector
 
 
-def load_word_vectors(filename):
+def load_word_vectors(filename, n_components=6):
     try:
         filepath = os.path.join(BASE_DIR, filename)
         word_vectors = joblib.load(filepath)
-        return word_vectors
+        
+        # word_vectorsが辞書形式の場合、ベクトルをリストに変換
+        words = list(word_vectors.keys())
+        vectors = np.array(list(word_vectors.values()))
+        
+        # PCAを使用して次元削減
+        pca = PCA(n_components=n_components)
+        reduced_vectors = pca.fit_transform(vectors)
+        
+        # 次元削減後のベクトルを再び辞書形式に変換
+        reduced_word_vectors = {word: vec for word, vec in zip(words, reduced_vectors)}
+        
+        return reduced_word_vectors
     except Exception as e:
         print(f"ベクトルファイルの読み込み中にエラーが発生しました: {e}")
         return {}
+
+# 6次元に削減したword_vectorsを読み込み
+reduced_word_vectors = load_and_reduce_word_vectors('word_vectors.pkl', n_components=6)
 
 def approximate_gradient(params, word_vectors, user_input_vector):
     delta = 1e-5
