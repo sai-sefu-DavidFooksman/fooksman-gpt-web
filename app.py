@@ -37,11 +37,11 @@ def vectorize_text(text):
     
     # DistilRoBERTaモデルのAPI呼び出し
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
-    if 'last_hidden_state' in response:
-        vector = response['last_hidden_state'][0][0]  # 最初のトークンのベクトルを取得
+    if isinstance(response, list) and len(response) > 0 and 'embedding' in response[0]:
+        vector = response[0]['embedding']
         return np.array(vector)
     else:
-        raise ValueError("レスポンスに 'last_hidden_state' が含まれていません")
+        raise ValueError("レスポンスに 'embedding' が含まれていません")
 
 def load_word_vectors(filename):
     try:
@@ -103,8 +103,8 @@ def generate_text_with_gpt(prompt):
     
     # GPT-2モデルのAPI呼び出し
     response = call_huggingface_api(GPT2_API_URL, headers, payload)
-    if 'generated_text' in response:
-        return response['generated_text'].strip()
+    if isinstance(response, list) and len(response) > 0 and 'generated_text' in response[0]:
+        return response[0]['generated_text'].strip()
     else:
         raise ValueError("レスポンスに 'generated_text' が含まれていません")
 
