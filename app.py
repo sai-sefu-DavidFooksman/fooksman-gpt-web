@@ -79,10 +79,12 @@ def generate_text_simple(params, word_vectors, user_input_vector):
 def find_closest_words(user_input_vector, word_vectors, gradients):
     closest_words = []
     # gradientsをuser_input_vectorの形状に合わせる
-    gradients_broadcasted = np.tile(gradients, (user_input_vector.shape[0] // gradients.shape[0] + 1, ))[:user_input_vector.shape[0]]
+    gradients_broadcasted = np.tile(gradients, int(np.ceil(user_input_vector.shape[0] / gradients.shape[0])))[:user_input_vector.shape[0]]
+    
     for word, vector in word_vectors.items():
         distance = cosine(user_input_vector + gradients_broadcasted, vector)
         closest_words.append((distance, word))
+    
     closest_words.sort()
     return [word for _, word in closest_words[:5]]
 
@@ -127,7 +129,6 @@ def generate_response(user_input):
     
     user_input_vector = vectorize_text(user_input, generated_sentences)
     
-    # print statements for debugging
     print("API応答: ", user_input_vector)
     print("形状: ", user_input_vector.shape) 
     
@@ -142,7 +143,7 @@ def generate_response(user_input):
             padding = optimized_params.shape[0] - user_input_vector.shape[0]
             user_input_vector = np.pad(user_input_vector, (0, padding), mode='constant')
         else:
-            optimized_params = optimized_params[:user_input_vector.shape[0]]
+            optimized_params = np.tile(optimized_params, int(np.ceil(user_input_vector.shape[0] / optimized_params.shape[0])))[:user_input_vector.shape[0]]
     
     print("ユーザー入力ベクトルの形状: ", user_input_vector.shape) 
     
@@ -155,6 +156,7 @@ def generate_response(user_input):
     generated_text = generate_text_with_gpt(combined_prompt)
     
     return generated_text
+
 
 
 @app.route("/", methods=["GET", "POST"])
