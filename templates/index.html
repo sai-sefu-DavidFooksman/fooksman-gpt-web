@@ -144,17 +144,28 @@
             inputField.value = '';
             inputField.focus();
 
-            // Simulate bot response
-            setTimeout(() => {
-                const botResponse = "これはサンプルの応答です。"; // ここに生成された応答を挿入
+            // Send the message to the server and get the response
+            fetch('/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ 'user_input': message })
+            })
+            .then(response => response.text())
+            .then(data => {
+                // Extract the response text from the server
                 const botMessage = document.createElement('div');
                 botMessage.className = 'message bot';
-                botMessage.innerHTML = `<div class="bubble">${botResponse}</div>`;
+                botMessage.innerHTML = `<div class="bubble">${data}</div>`;
                 chatBox.appendChild(botMessage);
 
                 // Scroll to the bottom
                 chatBox.scrollTop = chatBox.scrollHeight;
-            }, 1000); // Simulate a delay for bot response
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
         }
     </script>
 </body>
