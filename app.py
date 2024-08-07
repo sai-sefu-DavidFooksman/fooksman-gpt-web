@@ -20,6 +20,7 @@ def call_huggingface_api(api_url, headers, payload, retries=3):
         try:
             response = requests.post(api_url, headers=headers, json=payload)
             response.raise_for_status()  # エラーが発生した場合に例外をスロー
+            print(f"レスポンス: {response.json()}")  # デバッグ用
             return response.json()
         except requests.exceptions.HTTPError as e:
             if response.status_code == 503:
@@ -37,7 +38,10 @@ def vectorize_text(text):
     
     # BERT日本語モデルのAPI呼び出し
     response = call_huggingface_api(BERT_JP_API_URL, headers, payload)
-    vector = response[0]['features']
+    if 'features' in response[0]:
+        vector = response[0]['features']
+    else:
+        raise ValueError("レスポンスに 'features' が含まれていません")
     
     return np.array(vector).flatten()
 
@@ -101,7 +105,10 @@ def generate_text_with_gpt(prompt):
     
     # GPT-2モデルのAPI呼び出し
     response = call_huggingface_api(GPT2_API_URL, headers, payload)
-    return response[0]['generated_text'].strip()
+    if 'generated_text' in response[0]:
+        return response[0]['generated_text'].strip()
+    else:
+        raise ValueError("レスポンスに 'generated_text' が含まれていません")
 
 def load_optimized_parameters(filename):
     try:
@@ -137,9 +144,11 @@ def home():
             response = generate_response(user_input)
         except requests.exceptions.HTTPError as e:
             response = f"エラーが発生しました: {e}"
+        except ValueError as e:
+            response = f"エラー: {e}"
         return render_template("index.html", response=response, user_input=user_input)
     return render_template("index.html", response="", user_input="")
 
 if __name__ == "__main__":
-     port = int(os.getenv("PORT", 10000))
-     app.run(host="0.0.0.0", port=port, debug=True)
+    port = int(os.getenv("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=True)
