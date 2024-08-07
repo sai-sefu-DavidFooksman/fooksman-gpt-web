@@ -44,9 +44,9 @@ def vectorize_text(source_sentence, sentences):
     
     # Sentence-TransformersモデルのAPI呼び出し
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
-    if isinstance(response, list) and len(response) > 0 and isinstance(response[0], list):
-        vector = response[0]
-        return np.array(vector)
+    if isinstance(response, list) and len(response) > 0:
+        vectors = [np.array(item) for item in response]
+        return np.array(vectors)
     else:
         raise ValueError("レスポンスに 'embeddings' が含まれていません")
 
@@ -131,7 +131,10 @@ def generate_response(user_input):
         generated_sentences.append(generated_sentence)
     
     # ユーザー入力と生成した文をベクトル化
-    user_input_vector = vectorize_text(user_input, generated_sentences)
+    try:
+        user_input_vector = vectorize_text(user_input, generated_sentences)
+    except ValueError as e:
+        return f"ベクトル化エラー: {e}"
     
     filename = 'optimized_params.npy'
     optimized_params = load_optimized_parameters(filename)
