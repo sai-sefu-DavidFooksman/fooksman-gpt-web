@@ -1,7 +1,7 @@
 from flask import Flask, request, render_template
 import numpy as np
 import torch
-from transformers import BertTokenizer, BertModel, GPT2Tokenizer, GPT2LMHeadModel
+from transformers import BertJapaneseTokenizer, BertModel, GPT2Tokenizer, GPT2LMHeadModel
 from scipy.spatial.distance import cosine
 import joblib
 import os
@@ -12,7 +12,7 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def vectorize_text(text):
-    tokenizer = BertTokenizer.from_pretrained('cl-tohoku/bert-base-japanese')
+    tokenizer = BertJapaneseTokenizer.from_pretrained('cl-tohoku/bert-base-japanese')
     model = BertModel.from_pretrained('cl-tohoku/bert-base-japanese')
     
     inputs = tokenizer(text, return_tensors='pt', truncation=True, padding=True)
