@@ -129,19 +129,18 @@ def generate_response(user_input):
     print("ユーザー入力ベクトルの形状:", user_input_vector.shape)  # ベクトルの形状を確認
     
     filename = 'optimized_params.npy'
-    optimized_params = load_optimized_parameters(filename)
-    
+    optimized_params = np.load(filename)  # NumPyファイルを読み込み
     print("最適化パラメータの形状:", optimized_params.shape)  # パラメータの形状を確認
     
     # 次元の一致を確認
     if user_input_vector.shape[0] != optimized_params.shape[0]:
-        # 次元が一致しない場合に修正する
         if user_input_vector.shape[0] < optimized_params.shape[0]:
-            # user_input_vector の次元を合わせる
-            optimized_params = optimized_params[:user_input_vector.shape[0]]
+            # user_input_vector の次元を合わせるためにゼロパディング
+            padding = optimized_params.shape[0] - user_input_vector.shape[0]
+            user_input_vector = np.pad(user_input_vector, (0, padding), mode='constant')
         else:
-            # optimized_params の次元を合わせる
-            user_input_vector = np.pad(user_input_vector, (0, optimized_params.shape[0] - user_input_vector.shape[0]), mode='constant')
+            # optimized_params の次元を合わせるために切り取る
+            optimized_params = optimized_params[:user_input_vector.shape[0]]
     
     prompts = []
     prompt = generate_text_from_gradient(optimized_params, user_input_vector)
