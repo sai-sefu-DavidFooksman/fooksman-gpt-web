@@ -2,12 +2,13 @@ from flask import Flask, request, render_template
 import numpy as np
 import requests
 import os
+import joblib
+from scipy.spatial.distance import cosine
 
 app = Flask(__name__)
 
-# ディレクトリのベースパスを設定
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPIキーを取得
+# 環境変数からAPIキーを取得
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
 # Hugging Face APIのエンドポイント
 GPT2_API_URL = "https://api-inference.huggingface.co/models/gpt2"
@@ -88,7 +89,7 @@ def generate_text_with_gpt(prompt):
     
     # GPT-2モデルのAPI呼び出し
     response = call_huggingface_api(GPT2_API_URL, headers, payload)
-    return response['generated_text'].strip()
+    return response[0]['generated_text'].strip()
 
 def load_optimized_parameters(filename):
     try:
