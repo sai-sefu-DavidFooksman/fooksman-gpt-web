@@ -113,8 +113,9 @@ def home():
     if request.method == "POST":
         user_input = request.form["user_input"]
         response = generate_response(user_input)
-        return render_template("index.html", response=response, user_input=user_input)
+        return response  # Return the generated text directly
     return render_template("index.html", response="", user_input="")
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
