@@ -13,7 +13,7 @@ HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPI�
 
 # Hugging Face APIのエンドポイント
 DISTILROBERTA_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-MiniLM-L6-v2"
-GPT2_API_URL = "https://api-inference.huggingface.co/models/openai/gpt-2"
+GPT2_API_URL = "https://api-inference.huggingface.co/models/openai-community/gpt2"
 
 def call_huggingface_api(api_url, headers, payload, retries=3):
     for attempt in range(retries):
@@ -106,7 +106,7 @@ def generate_text_from_gradient(params, user_input_vector):
 
 def generate_text_with_gpt(prompt):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    payload = {"inputs": {"source_sentence": prompt}}
+    payload = {"inputs": prompt}
     
     # GPT-2モデルのAPI呼び出し
     response = call_huggingface_api(GPT2_API_URL, headers, payload)
