@@ -35,7 +35,7 @@ def call_huggingface_api(api_url, headers, payload, retries=3):
 
 def vectorize_text(text):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    payload = {"inputs": text}
+    payload = {"inputs": f"{text} <mask>"}
     
     # DistilRoBERTaモデルのAPI呼び出し
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
