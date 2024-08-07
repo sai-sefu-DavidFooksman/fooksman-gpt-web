@@ -12,7 +12,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPIキーを取得
 
 # Hugging Face APIのエンドポイント
-DISTILROBERTA_API_URL = "https://api-inference.huggingface.co/models/distilroberta-base"
+DISTILROBERTA_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-MiniLM-L6-v2"
 GPT2_API_URL = "https://api-inference.huggingface.co/models/openai/gpt-2"
 
 def call_huggingface_api(api_url, headers, payload, retries=3):
@@ -35,15 +35,15 @@ def call_huggingface_api(api_url, headers, payload, retries=3):
 
 def vectorize_text(text):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    payload = {"inputs": f"{text} <mask>"}
+    payload = {"inputs": text}
     
-    # DistilRoBERTaモデルのAPI呼び出し
+    # Sentence-TransformersモデルのAPI呼び出し
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
-    if isinstance(response, list) and len(response) > 0 and 'embedding' in response[0]:
-        vector = response[0]['embedding']
+    if isinstance(response, dict) and 'embeddings' in response:
+        vector = response['embeddings'][0]
         return np.array(vector)
     else:
-        raise ValueError("レスポンスに 'embedding' が含まれていません")
+        raise ValueError("レスポンスに 'embeddings' が含まれていません")
 
 def load_word_vectors(filename):
     try:
