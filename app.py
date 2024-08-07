@@ -2,8 +2,8 @@ from flask import Flask, request, render_template
 import numpy as np
 import requests
 import os
-from scipy.spatial.distance import cosine
 import joblib
+from scipy.spatial.distance import cosine
 
 app = Flask(__name__)
 
@@ -12,8 +12,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPIキーを取得
 
 # Hugging Face APIのエンドポイント
-DISTILBERT_API_URL = "https://api-inference.huggingface.co/models/distilbert/distilbert-base-uncased"
-GPT2_API_URL = "https://api-inference.huggingface.co/models/openai-community/gpt2"
+DISTILBERT_API_URL = "https://api-inference.huggingface.co/models/distilbert-base-uncased"
+GPT2_API_URL = "https://api-inference.huggingface.co/models/openai/gpt-2"
 
 def call_huggingface_api(api_url, headers, payload, retries=3):
     for attempt in range(retries):
@@ -38,11 +38,10 @@ def vectorize_text(text):
     # DistilBERTモデルのAPI呼び出し
     response = call_huggingface_api(DISTILBERT_API_URL, headers, payload)
     if 'last_hidden_state' in response:
-        vector = response['last_hidden_state'][0][0].tolist()  # 最初のトークンのベクトルを取得
+        vector = response['last_hidden_state'][0][0]  # 最初のトークンのベクトルを取得
+        return np.array(vector)
     else:
         raise ValueError("レスポンスに 'last_hidden_state' が含まれていません")
-    
-    return np.array(vector)
 
 def load_word_vectors(filename):
     try:
@@ -64,7 +63,7 @@ def approximate_gradient(params, word_vectors, user_input_vector):
         params_plus[4 + i] += delta
         params_minus[4 + i] -= delta
         
-        vector_plus = vectorize_text(generate_text_simple(params_plus, word_vectors, user_input_vector)) 
+        vector_plus = vectorize_text(generate_text_simple(params_plus, word_vectors, user_input_vector))
         vector_minus = vectorize_text(generate_text_simple(params_minus, word_vectors, user_input_vector))
         
         gradient = np.mean(vector_plus - vector_minus) / (2 * delta)
@@ -78,9 +77,9 @@ def generate_text_simple(params, word_vectors, user_input_vector):
 
 def find_closest_words(user_input_vector, word_vectors, gradients):
     closest_words = []
-    gradients_broadcasted = np.tile(gradients, (user_input_vector.shape[0] // gradients.shape[0], 1)).flatten() 
+    gradients_broadcasted = np.tile(gradients, (user_input_vector.shape[0] // gradients.shape[0], 1)).flatten()
     for word, vector in word_vectors.items():
-        distance = cosine(user_input_vector + gradients_broadcasted, vector)  
+        distance = cosine(user_input_vector + gradients_broadcasted, vector)
         closest_words.append((distance, word))
     closest_words.sort()
     return [word for _, word in closest_words[:5]]
