@@ -2,13 +2,12 @@ from flask import Flask, request, render_template
 import numpy as np
 import requests
 import os
-import joblib
-from scipy.spatial.distance import cosine
 
 app = Flask(__name__)
 
-# 環境変数からAPIキーを取得
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+# ディレクトリのベースパスを設定
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPIキーを取得
 
 # Hugging Face APIのエンドポイント
 GPT2_API_URL = "https://api-inference.huggingface.co/models/gpt2"
@@ -25,7 +24,7 @@ def vectorize_text(text):
     
     # BERT日本語モデルのAPI呼び出し
     response = call_huggingface_api(BERT_JP_API_URL, headers, payload)
-    vector = response['last_hidden_state'][0][0]
+    vector = response[0]['features']
     
     return np.array(vector).flatten()
 
