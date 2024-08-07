@@ -61,9 +61,9 @@ def load_word_vectors(filename):
 
 def approximate_gradient(params, word_vectors, user_input_vector):
     delta = 1e-5
-    gradients = np.zeros(2)
+    gradients = np.zeros((user_input_vector.shape[1],))  # ベクトルの次元に合わせてゼロ配列を作成
     
-    for i in range(2):
+    for i in range(user_input_vector.shape[1]):  # 次元数に合わせてループ
         params_plus = params.copy()
         params_minus = params.copy()
         
@@ -73,20 +73,20 @@ def approximate_gradient(params, word_vectors, user_input_vector):
         vector_plus = vectorize_text(generate_text_simple(params_plus, word_vectors, user_input_vector), [])
         vector_minus = vectorize_text(generate_text_simple(params_minus, word_vectors, user_input_vector), [])
         
-        gradient = np.mean(vector_plus - vector_minus) / (2 * delta)
+        gradient = np.mean(vector_plus - vector_minus, axis=0) / (2 * delta)
         gradients[i] = gradient
     
     return gradients
 
 def generate_text_simple(params, word_vectors, user_input_vector):
-    closest_words = find_closest_words(user_input_vector, word_vectors, params[4:5])
+    closest_words = find_closest_words(user_input_vector, word_vectors, params[4:])
     return " ".join(closest_words)
 
 def find_closest_words(user_input_vector, word_vectors, gradients):
     closest_words = []
     gradients_broadcasted = np.tile(gradients, (user_input_vector.shape[0] // gradients.shape[0], 1)).flatten()
     for word, vector in word_vectors.items():
-        distance = cosine(user_input_vector + gradients_broadcasted, vector)
+        distance = cosine(user_input_vector.mean(axis=0) + gradients_broadcasted, vector)
         closest_words.append((distance, word))
     closest_words.sort()
     return [word for _, word in closest_words[:5]]
