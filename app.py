@@ -46,6 +46,8 @@ def vectorize_text(source_sentence, sentences):
     response = call_huggingface_api(DISTILROBERTA_API_URL, headers, payload)
     if isinstance(response, list) and len(response) > 0:
         vectors = [np.array(item) for item in response]
+        # ベクトルを numpy 配列に変換し、適切な形状を持たせる
+        print(f"vectorize_text output shape: {np.array(vectors).shape}")  # デバッグ情報
         return np.array(vectors)
     else:
         raise ValueError("レスポンスに 'embeddings' が含まれていません")
@@ -61,9 +63,10 @@ def load_word_vectors(filename):
 
 def approximate_gradient(params, word_vectors, user_input_vector):
     delta = 1e-5
-    gradients = np.zeros((user_input_vector.shape[1],))  # ベクトルの次元に合わせてゼロ配列を作成
+    num_dimensions = user_input_vector.shape[1] if len(user_input_vector.shape) > 1 else 1
+    gradients = np.zeros((num_dimensions,))  # ベクトルの次元に合わせてゼロ配列を作成
     
-    for i in range(user_input_vector.shape[1]):  # 次元数に合わせてループ
+    for i in range(num_dimensions):  # 次元数に合わせてループ
         params_plus = params.copy()
         params_minus = params.copy()
         
@@ -75,8 +78,10 @@ def approximate_gradient(params, word_vectors, user_input_vector):
         
         gradient = np.mean(vector_plus - vector_minus, axis=0) / (2 * delta)
         gradients[i] = gradient
-    
+
+     print(f"gradients shape: {gradients.shape}")  # デバッグ情報
     return gradients
+
 
 def generate_text_simple(params, word_vectors, user_input_vector):
     closest_words = find_closest_words(user_input_vector, word_vectors, params[4:])
@@ -97,12 +102,14 @@ def generate_text_with_params(params, word_vectors, user_input_vector):
     return " ".join(closest_words)
 
 def generate_text_from_gradient(params, user_input_vector):
+    print(f"user_input_vector shape: {user_input_vector.shape}")  # デバッグ情報
     word_vectors = load_word_vectors('word_vectors.pkl')
     
     if not word_vectors:
         return "エラー: ワードベクトルがロードできません。"
     
     return generate_text_with_params(params, word_vectors, user_input_vector) 
+
 
 def generate_text_with_gpt(prompt):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
