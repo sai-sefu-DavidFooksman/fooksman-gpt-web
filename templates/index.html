@@ -4,63 +4,175 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChatGPT風アプリケーション</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f9fc;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .chat {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 80px; /* Space for the input field */
+        }
+
+        .message {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.user .bubble {
+            background-color: #007BFF;
+            color: #fff;
+            border-radius: 15px 15px 0 15px;
+            padding: 10px 15px;
+            max-width: 60%;
+            position: relative;
+        }
+
+        .message.bot .bubble {
+            background-color: #f1f1f1;
+            color: #333;
+            border-radius: 15px 15px 15px 0;
+            padding: 10px 15px;
+            max-width: 60%;
+            position: relative;
+        }
+
+        .bubble:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .message.user .bubble:after {
+            right: -15px;
+            border-left: 15px solid #007BFF;
+            border-top: 15px solid transparent;
+            border-bottom: 0;
+        }
+
+        .message.bot .bubble:after {
+            left: -15px;
+            border-right: 15px solid #f1f1f1;
+            border-top: 15px solid transparent;
+            border-bottom: 0;
+        }
+
+        .input-container {
+            display: flex;
+            padding: 10px;
+            background: #ffffff;
+            border-top: 1px solid #ddd;
+        }
+
+        .input-container input[type="text"] {
+            font-size: 18px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .input-container button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .input-container button:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    <h1>ChatGPT風アプリケーション</h1>
-    <form method="post">
-        <label for="user_input">ユーザーの入力:</label>
-        <input type="text" id="user_input" name="user_input" value="{{ user_input }}" required>
-        <button type="submit">送信</button>
-    </form>
-    {% if response %}
-    <h2>生成された応答:</h2>
-    <p>{{ response }}</p>
-    {% endif %}
+    <div class="container">
+        <div class="chat" id="chat-box">
+            <!-- メッセージと回答がここに追加されます -->
+        </div>
+        <div class="input-container">
+            <form id="message-form">
+                <input type="text" id="user_input" placeholder="メッセージを入力...">
+                <button type="submit">送信</button>
+            </form>
+        </div>
+    </div>
 
     <script>
-    async function sendMessage() {
-        const inputField = document.getElementById('user_input');
-        const message = inputField.value.trim();
-        
-        if (message === '') return;
-
-        // Create user message element
-        const chatBox = document.getElementById('chat-box');
-        const userMessage = document.createElement('div');
-        userMessage.className = 'message user';
-        userMessage.innerHTML = `<div class="bubble">${message}</div>`;
-        chatBox.appendChild(userMessage);
-
-        // Clear input field
-        inputField.value = '';
-        inputField.focus();
-
-        // Send user message to the server and get the response
-        const response = await fetch('/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ user_input: message })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            const botResponse = data.response;
+        document.getElementById('message-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
             
-            // Add bot response to chat
-            const botMessage = document.createElement('div');
-            botMessage.className = 'message bot';
-            botMessage.innerHTML = `<div class="bubble">${botResponse}</div>`;
-            chatBox.appendChild(botMessage);
+            const inputField = document.getElementById('user_input');
+            const message = inputField.value.trim();
+            
+            if (message === '') return;
 
-            // Scroll to the bottom
-            chatBox.scrollTop = chatBox.scrollHeight;
-        } else {
-            console.error('エラーが発生しました。');
-        }
-    }
-</script>
+            // Create user message element
+            const chatBox = document.getElementById('chat-box');
+            const userMessage = document.createElement('div');
+            userMessage.className = 'message user';
+            userMessage.innerHTML = `<div class="bubble">${message}</div>`;
+            chatBox.appendChild(userMessage);
 
+            // Clear input field
+            inputField.value = '';
+            inputField.focus();
+
+            // Send user message to the server and get the response
+            const response = await fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_input: message })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const botResponse = data.response;
+                
+                // Add bot response to chat
+                const botMessage = document.createElement('div');
+                botMessage.className = 'message bot';
+                botMessage.innerHTML = `<div class="bubble">${botResponse}</div>`;
+                chatBox.appendChild(botMessage);
+
+                // Scroll to the bottom
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } else {
+                console.error('エラーが発生しました。');
+            }
+        });
+    </script>
 </body>
 </html>
