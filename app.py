@@ -135,6 +135,7 @@ def home():
         return render_template("index.html", response=response, user_input=user_input)
     return render_template("index.html", response="", user_input="")
 
- #PORT環境変数を使用
- port = int(os.getenv("PORT", 10000))
- app.run(host="0.0.0.0", port=port, debug=True)
+if __name__ == "__main__":
+     #PORT環境変数を使用
+     port = int(os.getenv("PORT", 10000))
+     app.run(host="0.0.0.0", port=port, debug=True)
