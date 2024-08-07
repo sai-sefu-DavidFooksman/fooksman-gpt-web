@@ -60,11 +60,12 @@ def load_word_vectors(filename, n_components=6):
         # PCAの適用前にデータの形状を確認
         print("ベクトルの形状:", vectors.shape)
         
-        # サンプル数と特徴量数の確認
         n_samples, n_features = vectors.shape
-        if n_features < n_components:
-            n_components = n_features
-            print(f"n_componentsが特徴量数を超えたため、n_componentsを{n_features}に修正しました。")
+        
+        # n_componentsをサンプル数または特徴量数の最小値に設定
+        if n_components > min(n_samples, n_features):
+            n_components = min(n_samples, n_features)
+            print(f"n_componentsがサンプル数または特徴量数を超えたため、n_componentsを{n_components}に修正しました。")
         
         # PCAを使用して次元削減
         pca = PCA(n_components=n_components)
@@ -77,6 +78,7 @@ def load_word_vectors(filename, n_components=6):
     except Exception as e:
         print(f"ベクトルファイルの読み込み中にエラーが発生しました: {e}")
         return {}
+
 
 # 6次元に削減したword_vectorsを読み込み
 reduced_word_vectors = load_word_vectors('word_vectors.pkl', n_components=6)
