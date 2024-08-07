@@ -78,7 +78,11 @@ def generate_text_simple(params, word_vectors, user_input_vector):
 
 def find_closest_words(user_input_vector, word_vectors, gradients):
     closest_words = []
-    gradients_broadcasted = np.tile(gradients, (user_input_vector.shape[0] // gradients.shape[0], 1)).flatten()
+    gradients_broadcasted = np.full_like(user_input_vector, gradients)  # スカラー量の場合
+    print(f"user_input_vector shape: {user_input_vector.shape}")
+　　print(f"gradients shape: {gradients.shape}")
+　　print(f"gradients_broadcasted shape: {gradients_broadcasted.shape}")
+
     for word, vector in word_vectors.items():
         distance = cosine(user_input_vector + gradients_broadcasted, vector)
         closest_words.append((distance, word))
