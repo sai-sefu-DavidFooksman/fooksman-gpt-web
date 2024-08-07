@@ -11,8 +11,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPIキーを取得
 
 # Hugging Face APIのエンドポイント
-DISTILBERT_API_URL = "https://api-inference.huggingface.co/models/distilbert-base-uncased"
-GPT2_API_URL = "https://api-inference.huggingface.co/models/gpt2"
+DISTILBERT_API_URL = "https://api-inference.huggingface.co/models/distilbert/distilbert-base-uncased"
+GPT2_API_URL = "https://api-inference.huggingface.co/models/openai-community/gpt2"
 
 def call_huggingface_api(api_url, headers, payload, retries=3):
     for attempt in range(retries):
