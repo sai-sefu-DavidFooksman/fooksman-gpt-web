@@ -2,7 +2,6 @@ from flask import Flask, request, render_template
 import numpy as np
 import requests
 import os
-import joblib
 from scipy.spatial.distance import cosine
 
 app = Flask(__name__)
@@ -12,27 +11,22 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")  # 環境変数からAPIキーを取得
 
 # Hugging Face APIのエンドポイント
-GPT2_API_URL = "https://api-inference.huggingface.co/models/openai-community/gpt2"
-BERT_JP_API_URL = "https://api-inference.huggingface.co/models/tohoku-nlp/bert-base-japanese"
+DISTILBERT_API_URL = "https://api-inference.huggingface.co/models/distilbert-base-uncased"
+GPT2_API_URL = "https://api-inference.huggingface.co/models/gpt2"
 
 def call_huggingface_api(api_url, headers, payload, retries=3):
     for attempt in range(retries):
         try:
             response = requests.post(api_url, headers=headers, json=payload)
             response.raise_for_status()  # エラーが発生した場合に例外をスロー
-            print(f"レスポンス: {response.json()}")  # デバッグ用
             return response.json()
         except requests.exceptions.HTTPError as e:
-            print(f"HTTP エラー: {e}")
             if response.status_code == 503:
-                print(f"503 サーバーエラー: リトライ {attempt + 1} / {retries}")
+                print(f"503 サーバーエラー: {e}, リトライ {attempt + 1} / {retries}")
             else:
                 raise
-        except requests.exceptions.RequestException as e:
-            print(f"リクエストエラー: {e}")
-            raise
         except Exception as e:
-            print(f"不明なエラー: {e}")
+            print(f"API呼び出し中にエラーが発生しました: {e}")
             raise
     raise requests.exceptions.HTTPError(f"503 サーバーエラー: {retries}回の試行後もサービスが利用できません")
 
@@ -40,14 +34,14 @@ def vectorize_text(text):
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
     payload = {"inputs": text}
     
-    # BERT日本語モデルのAPI呼び出し
-    response = call_huggingface_api(BERT_JP_API_URL, headers, payload)
-    if 'features' in response:
-        vector = response['features']
+    # DistilBERTモデルのAPI呼び出し
+    response = call_huggingface_api(DISTILBERT_API_URL, headers, payload)
+    if 'last_hidden_state' in response:
+        vector = response['last_hidden_state'][0][0].tolist()  # 最初のトークンのベクトルを取得
     else:
-        raise ValueError("レスポンスに 'features' が含まれていません")
+        raise ValueError("レスポンスに 'last_hidden_state' が含まれていません")
     
-    return np.array(vector).flatten()
+    return np.array(vector)
 
 def load_word_vectors(filename):
     try:
