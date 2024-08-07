@@ -57,6 +57,15 @@ def load_word_vectors(filename, n_components=6):
         words = list(word_vectors.keys())
         vectors = np.array(list(word_vectors.values()))
         
+        # PCAの適用前にデータの形状を確認
+        print("ベクトルの形状:", vectors.shape)
+        
+        # サンプル数と特徴量数の確認
+        n_samples, n_features = vectors.shape
+        if n_features < n_components:
+            n_components = n_features
+            print(f"n_componentsが特徴量数を超えたため、n_componentsを{n_features}に修正しました。")
+        
         # PCAを使用して次元削減
         pca = PCA(n_components=n_components)
         reduced_vectors = pca.fit_transform(vectors)
@@ -185,9 +194,9 @@ def home():
         except requests.exceptions.HTTPError as e:
             response = f"エラーが発生しました: {e}"
         except ValueError as e:
-            response = f"エラー: {e}"
-        return render_template("index.html", response=response, user_input=user_input)
-    return render_template("index.html", response="", user_input="")
+            response = f"エラーが発生しました: {e}"
+        return render_template("index.html", response=response)
+    return render_template("index.html", response="")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
